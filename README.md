@@ -72,6 +72,7 @@ python script.py <hostname> <username> <password> <enable_password> --upgrade HL
 * Skrypt wymaga dostępu do OLT za pośrednictwem SSH.
 * Upewnij się, że masz odpowiednie uprawnienia do wykonywania operacji na OLT.
 * Autor nie ponosi odpowiedzialności za jakiekolwiek szkody wynikłe z użycia tego skryptu.
+* Testowany na urządzeniach OLT: v5824G, V5816, V5812G.
 
 ### Podsumowanie
 
