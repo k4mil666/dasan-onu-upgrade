@@ -3,7 +3,7 @@
 import argparse
 from netmiko import ConnectHandler
 import time
-
+import re
 
 
 def connect_to_dasan(hostname, username, password, enable_password, device_type='generic'):
@@ -101,7 +101,8 @@ def combine_data(model_data, firmware_data, model, current_version):
                 (current_version in firmware_entry['OS1'] or current_version in firmware_entry['OS2']) and
                 firmware_entry['Status'] != 'Commit Complete' and
                 firmware_entry['Status'] != 'Download Wait' and
-                firmware_entry['Status'] != 'Download Progress'):
+                firmware_entry['Status'] != 'Download Progress' and
+                firmware_entry['Status'] != 'End D/L Progress (Dev Busy)'):
 
                 combined_data.append({
                     'OLT': model_entry['OLT'],
@@ -168,20 +169,27 @@ def download_firmware(connection, ftp_host, file_name, ftp_user, ftp_password):
 
 
 def upgrade_firmware(connection, olt_ids, combined_data, firmware_file, ftp_host, ftp_user, ftp_password, current_version, exclude_version=None):
+    def clean_version(version):
+        # Usuwa oznaczenia (D) i (D)(R), zwraca resztę jako numer wersji
+        cleaned = re.sub(r'^\s*(\(D\))?(\(R\))?\s*', '', version)
+        return cleaned.strip()
+
     def version_matches(version, pattern):
-        return version.startswith(pattern)
+        clean_ver = clean_version(version)
+        clean_pat = clean_version(pattern)
+        return clean_ver.startswith(clean_pat)
 
     for olt_id in olt_ids:
         if current_version.lower() == 'all':
             onu_list = [entry for entry in combined_data if entry['OLT'] == str(olt_id) and 
-                        (exclude_version is None or entry['Firmware'] != exclude_version)]
+                        (exclude_version is None or clean_version(entry['Firmware']) != clean_version(exclude_version))]
         else:
             onu_list = [entry for entry in combined_data if entry['OLT'] == str(olt_id) and 
                         version_matches(entry['Firmware'], current_version) and
-                        (exclude_version is None or entry['Firmware'] != exclude_version)]
+                        (exclude_version is None or clean_version(entry['Firmware']) != clean_version(exclude_version))]
         
         if not onu_list:
-            print(f"No ONUs found for OLT port {olt_id} to upgrade.")
+            print(f"No ONUs found for OLT port: {olt_id} to upgrade.")
             continue
 
         # Sprawdzanie dostępności pliku firmware na konkretnym OLT
